@@ -1,6 +1,7 @@
 int Motorspd = 0 , MotorInitial = 100;
 int kp = 1, ki = 0, kd = 0;
-int error = 0, lastError = 0, integral = 0, derivative = 0;
+int error = 0, lastError = 0, derivative = 0;
+int constrain;
 
 int IRfarleft = 0, IRleft = 2,IRmid = 4, IRright = 6, IRfarright = 8;
 
@@ -34,3 +35,9 @@ void read(){
     delay(1000);
 }
 
+void PID(){
+  derivative = error - lastError;
+  Motorspd = MotorInitial + (kp*error) + (kd*derivative);
+  lastError = error;
+  Motorspd = MotorInitial;
+}
