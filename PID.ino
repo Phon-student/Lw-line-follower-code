@@ -1,5 +1,5 @@
 #define motorPin1  3
-#define motorPin2  4
+#define motorPin2  6
 #define IRfarleft = A1 
 #define IRleft = A2
 #define IRmid = A4
