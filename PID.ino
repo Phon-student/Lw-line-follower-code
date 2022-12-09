@@ -2,9 +2,9 @@
 #define motorPin2  6
 #define IRfarleft = A1 
 #define IRleft = A2
-#define IRmid = A4
-#define IRright = A6
-#define IRfarright = A8
+#define IRmid = A3
+#define IRright = A4
+#define IRfarright = A5
 
 int Motorspd = 0 , MotorInitial = 100;
 int kp = 1, ki = 0, kd = 0;
