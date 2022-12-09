@@ -27,6 +27,12 @@ void loop(){
   read();
   PID();
   Serial.println(Motorspd);
+  Serial.println(IRfarleft);
+  Serial.println(IRleft);
+  Serial.println(IRmid);
+  Serial.println(IRright);
+  Serial.println(IRfarright);
+  delay(1000);
 
 } 
 
