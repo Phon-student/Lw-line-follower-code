@@ -1,154 +1,187 @@
+#define ENA 3//right motor
+#define motorInput1 13
+#define motorInput2 12
 
-//motor pins
-int enA = 3;
-int in1 = 13;
-int in2 = 12;
+#define motorInput3 11
+#define motorInput4 5
+#define ENB 6//left motor
 
-int enB = 6;
-int in3 = 11;
-int in4 = 5;
+#define sensorsamount 5 //amount of sensors
 
-//PID variables
-int Motorspd = 0 , MotorInitial = 180;
-int kp = 1, ki = 0, kd = 0;
-int lastError = 0, derivative = 0;
+float P=0;
+float I=0;
+float D=0;
+float error = 0, LPerror = 0;
 
-int limit = 255;
-int lowlimit = 0;
+int rightmotor_spd, leftmotor_spd, maxspeed = 255;//max speed of motors
 
-int counts = 0;
-
-//IR sensor pins
-int IRfarleft = A1;
-int IRleft = A2;
-int IRmid = A3;
-int IRright = A4;
-int IRfarright = A5;
-
-// pin calibrations
-int PWML = enA;
-int PWMR = enB;
-
-int IRfarleftval = 0;
-int IRleftval = 0;
-int IRmidval = 0;
-int IRrightval = 0;
-int IRfarrightval = 0;
+long Sensor_avarage;
+int Sensor_sum;
+int position;
+long sensor[]={0,0,0,0,0};
+int i;
+int p[]={0,0,0,0,0};
 
 
-//functions
+//functions list declaration
 
+void read_sensors();
+void PID();
+void turning();
+void driver(int, int);
+int motor_set(int, int);
+void forward();
+void backward();
+void left();
+void right();
+void stop();
+void line_read();
+int mod(int);
 
-
-
-
-//setup
-void setup() {
+void setup(){
   Serial.begin(9600);
-  pinMode(enA, OUTPUT);
-  pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT);
-  pinMode(enB, OUTPUT);
-  pinMode(in3, OUTPUT);
-  pinMode(in4, OUTPUT);
-  pinMode(IRfarleft, INPUT);
-  pinMode(IRleft, INPUT);
-  pinMode(IRmid, INPUT);
-  pinMode(IRright, INPUT);
-  pinMode(IRfarright, INPUT);
+  pinMode(ENA, OUTPUT);
+  pinMode(ENB, OUTPUT);
+  pinMode(motorInput1, OUTPUT);
+  pinMode(motorInput2, OUTPUT);
+  pinMode(motorInput3, OUTPUT);
+  pinMode(motorInput4, OUTPUT);
 }
- 
 
 
-//main loop
 
 void loop(){
-  valueRead();
-  PID();
-  IRprint();
-  Serial.println("PWML:");
-  Serial.println(PWML);
-  Serial.println("PWMR:");
-  Serial.print(PWMR);
-
-
-
-} 
-
-//functions
-
-void valueRead(){
-  IRfarleftval = analogRead(IRfarleft);
-  IRleftval = analogRead(IRleft);
-  IRmidval = analogRead(IRmid);
-  IRrightval = analogRead(IRright);
-  IRfarrightval = analogRead(IRfarright);
+  forward();
+  delay(1000);
+  if(delay > 1000){
+    read_sensors();
+    PID();
+    turning();
+    driver(rightmotor_spd, leftmotor_spd);
+  }
 }
 
+void read_sensors(){
+  Sensor_avarage = 0;
+  Sensor_sum = 0;
+  for(i=0;i<sensorsamount;i++){
+    sensor[i] = analogRead(i);
+    Sensor_avarage += sensor[i]*i;
+    Sensor_sum += sensor[i];
+  }
+  position = Sensor_avarage/Sensor_sum;
+}
 
-//PID function to control motors based on IR sensor values
 void PID(){
-  int error = IRmidval - 500;
-  derivative = error - lastError;
-  Motorspd = (kp * error) + (ki * counts) + (kd * derivative);
-  lastError = error;
-  counts = counts + error;
-  PWML = MotorInitial + Motorspd;
-  PWMR = MotorInitial - Motorspd;
-  if (PWML > limit){
-    PWML = limit;
+  position = int(Sensor_avarage/Sensor_sum);
+  P=position-2;
+  I=I+P;
+  D=P-LPerror;
+  LPerror=P;
+  error= int(P*kp+I*ki+D*kd);
+}
+
+void turning(){
+  error = int(constrain(error,-maxspeed,maxspeed));
+  Serial.println(error);
+
+  if(error < 0){
+    rightmotor_spd = maxspeed + error;
+    leftmotor_spd = maxspeed;
   }
-  if (PWMR > limit){
-    PWMR = limit;
+  else{
+    rightmotor_spd = maxspeed;
+    leftmotor_spd = maxspeed - error;
   }
-  if (PWML < lowlimit){
-    PWML = lowlimit;
+}
+
+void driver(int rightmotor_spd, int leftmotor_spd){
+  analogWrite(ENB, rightmotor_spd);
+  analogWrite(ENA, leftmotor_spd);
+  forward();
+}
+
+void line_read(){
+  p[0]=analogRead(A1);
+  p[1]=analogRead(A2);
+  p[2]=analogRead(A3);
+  p[3]=analogRead(A4);
+  p[4]=analogRead(A5);
+  for(i=0;i<5;i++){
+    if(p[i]>700){    //check the value read against the threshold
+      p[i]=1;
+    }
+    else{
+      p[i]=0;
+    }
   }
-  if (PWMR < lowlimit){
-    PWMR = lowlimit;
-  }
-  if (error > 0){
-    digitalWrite(in1, HIGH);
-    digitalWrite(in2, LOW);
-    digitalWrite(in3, HIGH);
-    digitalWrite(in4, LOW);
-    analogWrite(enA, PWML);
-    analogWrite(enB, PWMR);
-  }
-  if (error < 0){
-    digitalWrite(in1, LOW);
-    digitalWrite(in2, HIGH);
-    digitalWrite(in3, LOW);
-    digitalWrite(in4, HIGH);
-    analogWrite(enA, PWML);
-    analogWrite(enB, PWMR);
-  }
-  if (error == 0){
-    digitalWrite(in1, HIGH);
-    digitalWrite(in2, LOW);
-    digitalWrite(in3, HIGH);
-    digitalWrite(in4, LOW);
-    analogWrite(enA, MotorInitial);
-    analogWrite(enB, MotorInitial);
-  }
+}
+
+
+//drive functions
+void forward(){
+  digitalWrite(motorInput1, HIGH);
+  digitalWrite(motorInput2, LOW);
   
+  digitalWrite(motorInput3, HIGH);
+  digitalWrite(motorInput4, LOW);
+}
+
+void backward(){
+  digitalWrite(motorInput1, LOW);
+  digitalWrite(motorInput2, HIGH);
+  
+  digitalWrite(motorInput3, LOW);
+  digitalWrite(motorInput4, HIGH);
+}
+
+void left(){
+  digitalWrite(motorInput1, HIGH);
+  digitalWrite(motorInput2, LOW);
+  
+  digitalWrite(motorInput3, LOW);
+  digitalWrite(motorInput4, LOW);
+}
+
+void right(){
+  digitalWrite(motorInput1, LOW);
+  digitalWrite(motorInput2, LOW);
+  
+  digitalWrite(motorInput3, LOW);
+  digitalWrite(motorInput4, HIGH);
+}
+
+void left_turn90(){
+  digitalWrite(motorInput1, HIGH);
+  digitalWrite(motorInput2, LOW);
+  
+  digitalWrite(motorInput3, LOW);
+  digitalWrite(motorInput4, HIGH);
+}
+
+void right_turn90(){
+  digitalWrite(motorInput1, LOW);
+  digitalWrite(motorInput2, HIGH);
+  
+  digitalWrite(motorInput3, HIGH);
+  digitalWrite(motorInput4, LOW);
+}
+
+void stop(){
+  digitalWrite(motorInput1, LOW);
+  digitalWrite(motorInput2, LOW);
+  
+  digitalWrite(motorInput3, LOW);
+  digitalWrite(motorInput4, LOW);
 }
 
 
-
-
-
-//IR sensor print
-void IRprint(){
-  Serial.print("IRfarleftval: ");
-  Serial.print(IRfarleftval);
-  Serial.print("IRleftval: ");
-  Serial.print(IRleftval);
-  Serial.print("IRmidval: ");
-  Serial.print(IRmidval);
-  Serial.print("IRrightval: ");
-  Serial.print(IRrightval);
-  Serial.print("IRfarrightval: ");
-  Serial.print(IRfarrightval);
+//PID functions
+int mod(int v){
+  if(v<0){
+    return -1 * -v;
+  }
+  else if(v>0){
+    return v;
+  }
 }
-
